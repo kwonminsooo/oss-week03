@@ -49,19 +49,33 @@ if (!KEY) {
 //    응답: { documents: [ { place_name, address_name, x, y }, ... ] }
 //          x 가 경도(longitude), y 가 위도(latitude). 둘 다 문자열이라 Number() 로 바꿔야 한다.
 export async function searchPlace(query, size = 3) {
-  // TODO: new URL + searchParams 로 URL 을 만든다 (query, size)
-  // TODO: const data = await getJSON(url, { headers: { Authorization: `KakaoAK ${KEY}` } });
-  // TODO: return data.documents.map(...)  →  { name, address, latitude: Number(d.y), longitude: Number(d.x) }
+  const url = new URL("https://dapi.kakao.com/v2/local/search/keyword.json");
+  url.searchParams.set("query", query);   // 한글은 searchParams 가 인코딩해 줌. 문자열로 직접 이어 붙이면 깨짐.
+  url.searchParams.set("size", size);
+  // 키는 URL 이 아니라 헤더로. fetch 의 두 번째 인자(options) 가 getJSON 을 거쳐 그대로 전달됨.
+  // "KakaoAK" 와 키 사이 공백 하나 — 이거 빠지면 401.
+  const data = await getJSON(url, { headers: { Authorization: `KakaoAK ${KEY}` } });
+  // 카카오는 x 가 경도, y 가 위도. 둘 다 문자열이라 Number() 안 하면 toFixed 에서 죽음.
+  // forecast() 가 { latitude, longitude } 를 받으니 그 이름으로 맞춰서 돌려줌.
+  return data.documents.map((d) => ({
+    name: d.place_name,
+    address: d.address_name,
+    latitude: Number(d.y),
+    longitude: Number(d.x),
+  }));
 }
 
 try {
   const places = await searchPlace(query);
   if (places.length === 0) throw new Error(`No place found for: ${query}`);
 
-  // TODO: 후보마다 한 줄: `${i + 1}. ${name}  ${address}  (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+ places.forEach((p, i) => {
+    console.log(`${i + 1}. ${p.name}  ${p.address}  (${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)})`);
+  });
 
-  // TODO: const fc = await forecast(places[0]);   // places[0] 에 latitude/longitude 가 있어서 forecast 가 그대로 받는다
-  // TODO: `Now at ${name}: ${temp.toFixed(1)}${unit}, ${describe(code)}`
+  // 첫 후보의 좌표로 날씨. places[0] 에 name/address 가 더 있어도 forecast 는 두 키만 꺼내 쓰니 그대로 넘김.
+  const fc = await forecast(places[0]);
+  console.log(`Now at ${places[0].name}: ${fc.now.temp.toFixed(1)}${fc.now.unit}, ${describe(fc.now.code)}`);
 } catch (err) {
   console.error("Error:", err.message);
   process.exit(1);
