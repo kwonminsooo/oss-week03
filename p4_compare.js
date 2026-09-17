@@ -39,8 +39,28 @@ if (names.length === 0) {
   process.exit(1);
 }
 
-// TODO:
-//   1. names.map(async (name) => { ... })  — 이름마다 geocode → forecast, { city, max } 를 돌려주는 Promise
-//   2. const results = await Promise.allSettled(...)
-//   3. fulfilled / rejected 로 나눔
-//   4. max 내림차순 정렬 → `${i + 1}. ${city.padEnd(8)} ${max.toFixed(1)}` → 실패는 `✗ ${name}: ${message}`
+const jobs = names.map(async (n) => {
+  const place = await geocode(n);
+  const fc = await forecast(place);
+  return { city: place.name, max: fc.days[0].max };
+});
+
+const results = await Promise.allSettled(jobs);
+
+const ok = results
+  .filter((r) => r.status === "fulfilled")
+  .map((r) => r.value)
+  .sort((a, b) => b.max - a.max);               // 내림차순. 숫자 sort 는 비교 함수 필수.
+
+const failed = results
+  .map((r, i) => ({ r, name: names[i] }))       // reason 에는 입력한 이름이 없으니 인덱스로 짝을 맞춤 (allSettled 는 입력 순서 유지)
+  .filter(({ r }) => r.status === "rejected");
+
+ok.forEach((row, i) => {
+   const max = row.max.toFixed(1);   // P7 전(chalk 없음)이라 색 없이 숫자만
+  console.log(`${i + 1}. ${row.city.padEnd(8)} ${max}`);
+});
+for (const { r, name } of failed) {
+  console.log(`✗ ${name}: ${r.reason.message}`);
+}
+
