@@ -47,7 +47,14 @@ export async function geocode(name) {
 export async function fetchForecastRaw({ latitude, longitude }, days = 3) {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
   // TODO: 위 파라미터를 url.searchParams.set 으로 하나씩 넣는다
-  // TODO: return await getJSON(url)
+   url.searchParams.set("latitude", latitude);
+  url.searchParams.set("longitude", longitude);
+   url.searchParams.set("current", "temperature_2m,weather_code");
+  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,weather_code");
+  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("forecast_days", days);
+   // TODO: return await getJSON(url)
+  return getJSON(url); 
 }
 
 // P3 (2/2). 원본 응답에서 main.js 가 찍을 것만 추려 작은 객체로 만든다.
@@ -64,6 +71,19 @@ export async function fetchForecastRaw({ latitude, longitude }, days = 3) {
 //   }
 export function parseForecast(raw) {
   // TODO
+  const { temperature_2m: temp, weather_code: code } = raw.current;
+  const unit = raw.current_units.temperature_2m;       // "°C". 요청에 temperature_unit 을 주면 바뀌니까 응답에서 읽음.
+
+  const d = raw.daily;
+  // daily 는 열(column) 단위 배열. 같은 인덱스끼리 하루. 행(row) 단위 객체로 바꿔 두면 뒤에서 쓰기 편함.
+  const days = d.time.map((date, i) => ({
+    date,
+    min: d.temperature_2m_min[i],
+    max: d.temperature_2m_max[i],
+    code: d.weather_code[i],
+  }));
+
+  return { now: { temp, unit, code }, days };
 }
 
 // 두 단계를 묶은 것. P4, P5, P6 가 이 함수를 그대로 가져다 쓴다. 건드릴 필요 없음.

@@ -38,10 +38,11 @@ try {
   const place = await geocode(name);
   const fc = await forecast(place);
 
-  // TODO (P3): 세 부분 출력
-  //   1. `${place.name}, ${place.country} (${lat}, ${lon})`    lat/lon 은 toFixed(2)
-  //   2. `Now: ${temp.toFixed(1)}${unit}, ${describe(code)}`
-  //   3. 날마다: `${label(date)}  min ${min}  max ${max}  ${describe(code)}`    min/max 는 toFixed(1)
+  console.log(`${place.name}, ${place.country} (${place.latitude.toFixed(2)}, ${place.longitude.toFixed(2)})`);
+  console.log(`Now: ${fc.now.temp.toFixed(1)}${fc.now.unit}, ${describe(fc.now.code)}`);
+  for (const day of fc.days) {
+    console.log(`${label(day.date)}  min ${day.min.toFixed(1)}  max ${day.max.toFixed(1)}  ${describe(day.code)}`);
+  }
 
   // TODO (P6): --save, --offline (README 참고)
 } catch (err) {
