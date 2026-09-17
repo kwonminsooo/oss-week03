@@ -41,7 +41,7 @@ sleep(10).then(() => console.log("F"));
 
 console.log("G");
 
-// prediction:
-// actual:
-// why I was wrong (one line per miss):
-//
+// prediction: A G C F D E B
+// actual:A D G C F E B
+// why I was wrong (one line per miss): 비동기함수 처리가 완료된 후에야 출력되는줄 알았으나 함수 내에서도 먼저 처리된 인자는 바로 출력된다
+// 
