@@ -1,0 +1,7 @@
+{
+  "name": "oss-week03",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Week 3 hands-on: async, fetch, a weather CLI"
+}

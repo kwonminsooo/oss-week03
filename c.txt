@@ -1,0 +1,4 @@
+fetch does not throw on 404.
+Check res.ok every time.
+Read the body when it fails.
+Then fix the parameter.

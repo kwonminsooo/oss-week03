@@ -1,0 +1,3 @@
+Anyone can generate code.
+Few can ship it.
+This course is about shipping.

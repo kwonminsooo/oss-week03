@@ -1,0 +1,2 @@
+A promise is a value that arrives later.
+Await it, or it stays a promise.
