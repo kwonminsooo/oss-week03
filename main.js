@@ -1,4 +1,4 @@
-// P3 / P6. 진입점 — main.js
+// P3 / P6 / P7. 진입점 — main.js (모범답안: P3 출력 + P6 --save/--offline + P7 chalk 까지 적용)
 //
 // 상황
 //   node main.js Busan  →  Busan 의 현재 날씨와 3일 예보를 찍는다.
@@ -22,30 +22,62 @@
 //
 // 커밋 메시지: p3: forecast cli  /  p6: cache and offline
 
-import { geocode, forecast } from "./p3_weather.js";
+import fs from "node:fs/promises";                 // P6. 캐시 파일 읽고 쓰기
+import chalk from "chalk";                          // P7. npm install chalk 뒤에 import. 확장자·경로 없이 이름만.
+import { geocode, fetchForecastRaw, parseForecast } from "./p3_weather.js";   // forecast() 대신 두 단계 — P6 이 raw 를 필요로 함
 import { describe } from "./wmo.js";
 
 const args = process.argv.slice(2);
 const flags = args.filter((a) => a.startsWith("--"));          // ["--save"] 같은 것
 const name = args.find((a) => !a.startsWith("--")) ?? "Seoul"; // 플래그가 아닌 첫 인자
 
+const cachePath = `cache/${name.toLowerCase()}.json`;
+
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function label(date) {                       // "2026-09-17" → "Thu 09-17"
   return `${WEEKDAY[new Date(date).getUTCDay()]} ${date.slice(5)}`;
 }
 
-try {
-  const place = await geocode(name);
-  const fc = await forecast(place);
+// P7. 색은 출력 직전에 한 번만. 값(숫자)에는 손대지 말고 문자열로 바꿀 때 입힘.
+function paintMax(max) {
+  const s = max.toFixed(1);
+  if (max < 10) return chalk.blue(s);
+  return s;
+}
 
-  console.log(`${place.name}, ${place.country} (${place.latitude.toFixed(2)}, ${place.longitude.toFixed(2)})`);
-  console.log(`Now: ${fc.now.temp.toFixed(1)}${fc.now.unit}, ${describe(fc.now.code)}`);
-  for (const day of fc.days) {
-    console.log(`${label(day.date)}  min ${day.min.toFixed(1)}  max ${day.max.toFixed(1)}  ${describe(day.code)}`);
+try {
+  let place, raw;
+
+  if (flags.includes("--offline")) {
+    // P6. 네트워크 없이 파일에서. 파일이 없을 때 readFile 의 ENOENT 메시지는 학생에게 불친절하니 우리 말로 바꿔 던짐.
+    let text;
+    try {
+      text = await fs.readFile(cachePath, "utf8");
+    } catch {
+      throw new Error(`no cache for ${name.toLowerCase()}`);
+    }
+    ({ place, raw } = JSON.parse(text));   // 구조 분해로 대입만 할 때는 괄호 필요. 없으면 { 를 블록으로 읽음.
+  } else {
+    place = await geocode(name);
+    raw = await fetchForecastRaw(place);
   }
 
-  // TODO (P6): --save, --offline (README 참고)
+  const fc = parseForecast(raw);
+
+  // P3. 출력 세 부분. P7 의 chalk.bold / paintMax 를 빼면 P3 시점의 답.
+  console.log(`${chalk.bold(place.name)}, ${place.country} (${place.latitude.toFixed(2)}, ${place.longitude.toFixed(2)})`);
+  console.log(`Now: ${fc.now.temp.toFixed(1)}${fc.now.unit}, ${describe(fc.now.code)}`);   // API 가 정수(24)를 줄 때도 24.0 으로. min/max 와 같은 이유
+  for (const day of fc.days) {
+    console.log(`${label(day.date)}  min ${day.min.toFixed(1)}  max ${paintMax(day.max)}  ${describe(day.code)}`);
+  }
+
+  if (flags.includes("--save")) {
+    await fs.mkdir("cache", { recursive: true });
+    await fs.writeFile(cachePath, JSON.stringify({ place, raw }, null, 2));
+    console.log(`saved ${cachePath}`);
+  }
 } catch (err) {
+  // geocode 의 Unknown place, getJSON 의 HTTP 4xx, fetch failed, no cache — 전부 여기.
   console.error("Error:", err.message);
   process.exit(1);
 }
